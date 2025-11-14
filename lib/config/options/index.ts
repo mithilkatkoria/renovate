@@ -2121,7 +2121,7 @@ const options: Readonly<RenovateOptions>[] = [
   },
   {
     name: 'rebaseLabel',
-    description: 'Label to request a rebase from Renovate bot.',
+    description: 'Label to request a rebase from Renovate.',
     type: 'string',
     default: 'rebase',
   },

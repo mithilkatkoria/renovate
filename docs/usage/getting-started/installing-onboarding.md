@@ -57,7 +57,7 @@ You can do this by running this Git command:
 git config --global core.autocrlf input
 ```
 
-This prevents the carriage return `\r\n` which may confuse Renovate bot.
+This prevents the carriage return `\r\n` which may confuse Renovate.
 You can also set the line endings in your repository by adding `* text=auto eol=lf` to your `.gitattributes` file.
 
 ## Repository onboarding
@@ -100,7 +100,7 @@ If you don't want a `renovate.json` file in your repository you can use one of t
 - `package.json` (deprecated)
 
 Or in a custom file present within the [`configFileNames`](../self-hosted-configuration.md#configfilenames).
-The bot first checks all the files in the `configFileNames` array before checking from the above file list.
+Renovate first checks all the files in the `configFileNames` array before checking from the above file list.
 
 #### package.json
 
@@ -152,7 +152,7 @@ If you want to make config edits directly, follow these steps:
 1. Create a pull request from the `renovate/reconfigure` branch
 1. Run renovate on your repository(if self-hosted), or wait for the hosted app to process the changes
 1. Renovate will comment on your PR, outlining the expected changes from your modified configuration
-1. You can continue to edit the configuration file in the same PR, and the bot will update its comment accordingly
+1. You can continue to edit the configuration file in the same PR, and Renovate will update its comment accordingly
 1. If you only want to validate your configuration changes, check out: [Validate your config](../config-validation.md)
 
 ### Nuke config and re-onboard

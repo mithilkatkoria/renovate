@@ -41,9 +41,12 @@ The default config is loaded first, and may be superseded/overridden by the conf
 
 ### Global config
 
-Global config means: the config defined by the person or team responsible for running the bot.
-This is also referred to as "bot config", because it's the config passed to the bot by the person running it.
+Global config means: the config defined by the person or team responsible for running the deployment of Renovate.
+
 Global config can contain config which is "global only" as well as any configuration options which are valid in Inherited config or Repository config.
+
+Previously this may have been referred to "bot config", because it's the config passed to the bot by the person running it.
+We don't use the "bot" terminology any more, so you'll see it likely referred to "global self-hosted configuration".
 
 If you are an end user of Renovate, for example if you're using the Mend Renovate App, then you don't need to care as much about any global config.
 As a end-user you can not change some settings because those settings are global-only.
