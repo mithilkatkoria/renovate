@@ -1018,7 +1018,7 @@ const options: Readonly<RenovateOptions>[] = [
     type: 'boolean',
     default: true,
   },
-  // Bot administration
+  // Admin/self-hosted administration
   {
     name: 'persistRepoData',
     description:
