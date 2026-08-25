@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  discussions: read
+  issues: read
   statuses: write
 
 concurrency:
@@ -19,7 +21,7 @@ jobs:
   closes-issue-or-discussion:
     runs-on: ubuntu-slim
     steps:
-      - name: Check for 'Closes \#' in commit messages
+      - name: Check for closing keywords that would close a Discussion
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -32,30 +34,75 @@ jobs:
               pull_number: context.payload.pull_request.number,
             });
 
-            // Check each commit message for closing keywords
-            const violatingCommits = [];
+            // GitHub honours closing keywords in both commit messages and the
+            // PR description. `#123` may refer to a Discussion rather than an
+            // Issue - since Issues and Discussions are numbered independently
+            // - and closing keywords must not auto-close a Discussion (see
+            // #45439, which unintentionally closed discussion #40885).
             // Matches: closes #123, fixes #123, closes: #123, etc.
-            const closingPattern = /(closes|fixes|resolves|fixed|closed|resolved):?\s+#\d+/i;
+            const closingPattern = /(closes|fixes|resolves|fixed|closed|resolved):?\s+#(\d+)/gi;
+
+            // Collect every closing-keyword reference, keeping one example
+            // line per source for the error report.
+            const references = new Map(); // number -> { source, line }
+            const collect = (text, source) => {
+              for (const match of text.matchAll(closingPattern)) {
+                const number = match[2];
+                if (!references.has(number)) {
+                  const line = text.slice(0, match.index).split('\n').length;
+                  const lineText = text.split('\n')[line - 1].trim();
+                  references.set(number, { source, line: lineText });
+                }
+              }
+            };
 
             for (const commit of commits) {
-              const message = commit.commit.message;
-              if (closingPattern.test(message)) {
-                const shortSha = commit.sha.substring(0, 7);
-                const firstLine = message.split('\n')[0];
-                violatingCommits.push({ sha: shortSha, message: firstLine });
+              const shortSha = commit.sha.substring(0, 7);
+              collect(commit.commit.message, `commit ${shortSha}`);
+            }
+            collect(context.payload.pull_request.body ?? '', 'PR description');
+
+            // Only fail for references that resolve to a Discussion - an
+            // Issue reference is the intended, supported use of these
+            // keywords (see the PR template).
+            const violations = [];
+            for (const [number, { source, line }] of references) {
+              let isIssue = true;
+              try {
+                await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: Number(number),
+                });
+              } catch (err) {
+                if (err.status !== 404) throw err;
+                isIssue = false;
+              }
+              if (isIssue) continue;
+
+              const { repository } = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $number) { id }
+                  }
+                }`,
+                { owner: context.repo.owner, repo: context.repo.repo, number: Number(number) },
+              );
+              if (repository.discussion) {
+                violations.push({ source, line });
               }
             }
 
             // Report results
-            if (violatingCommits.length > 0) {
-              let errorMessage = `Found ${violatingCommits.length} commit(s) with issue closing keywords:\n\n`;
-              for (const commit of violatingCommits) {
-                errorMessage += `- ${commit.sha}: ${commit.message}\n`;
+            if (violations.length > 0) {
+              let errorMessage = `Found ${violations.length} closing keyword(s) referencing a Discussion:\n\n`;
+              for (const violation of violations) {
+                errorMessage += `- ${violation.source}: ${violation.line}\n`;
               }
-              errorMessage += `\nCommit messages should not contain closing keywords (closes, fixes, resolves, etc.). Use the PR description instead.`;
+              errorMessage += `\nClosing keywords (closes, fixes, resolves, etc.) must not reference a Discussion, as merging would auto-close it. Reference the discussion without a closing keyword instead, e.g. 'Related discussion: #123'.`;
               core.setFailed(errorMessage);
             } else {
-              core.info('✓ No commits with issue closing keywords found');
+              core.info('✓ No closing keywords referencing a Discussion found');
             }
 
   # Runs a full `semantic-release` dry-run for the state that would exist right
